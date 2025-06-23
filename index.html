@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETSY Title & Description Extractor | Extract Text from Images</title>
+    <meta name="description" content="A smart tool to extract text from two images. Automatically identifies the smaller image as a title and the larger one as a description. Just drag and drop two images to start.">
+    <meta name="keywords" content="photo to text, image to text, ocr, text extractor, etsy title, etsy description, image sorting, automatic title description, copy text">
+    <meta name="author" content="Your Name or Company Name">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://e.aurtho.com/">
+    <meta property="og:title" content="ETSY Title & Description Extractor | Extract Text from Images">
+    <meta property="og:description" content="A smart tool to extract text from two images. Automatically identifies the smaller image as a title and the larger one as a description.">
+    <meta property="og:image" content="https://placehold.co/1200x630/4A90E2/FFFFFF?text=ETSY+Tool">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://e.aurtho.com/">
+    <meta property="twitter:title" content="ETSY Title & Description Extractor | Extract Text from Images">
+    <meta property="twitter:description" content="A smart tool to extract text from two images. Automatically identifies the smaller image as a title and the larger one as a description.">
+    <meta property="twitter:image" content="https://placehold.co/1200x630/4A90E2/FFFFFF?text=ETSY+Tool">
+    
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='15' fill='%23F1641E'/%3E%3Ctext x='50' y='68' font-size='60' fill='%23FFFFFF' text-anchor='middle' font-family='Poppins, sans-serif' font-weight='600'%3EE%3C/text%3E%3C/svg%3E">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background-color: #1a1a2e;
+            --container-color: rgba(22, 22, 46, 0.85);
+            --primary-color: #00a8ff;
+            --secondary-color: #9c88ff;
+            --text-color: #e0e0e0;
+            --light-text-color: #a0a0c0;
+            --border-color: rgba(0, 168, 255, 0.3);
+            --shadow-color: rgba(0, 168, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background-image: linear-gradient(45deg, var(--background-color) 0%, #16213e 100%);
+            scroll-behavior: smooth;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--container-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px 40px;
+            box-shadow: 0 8px 32px 0 var(--shadow-color);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        h2#reset-btn {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        h2#reset-btn:hover {
+            opacity: 0.8;
+        }
+
+        .description-text {
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
+            color: var(--light-text-color);
+            margin-bottom: 30px;
+        }
+
+        .description-text .highlight {
+             background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 500;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            background-color: rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+        
+        .drop-zone.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(0, 168, 255, 0.1);
+        }
+
+        .drop-zone-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-color);
+            pointer-events: none;
+        }
+
+        .drop-zone-subtext {
+            color: var(--light-text-color);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        
+        .output-wrapper {
+            background-color: var(--container-color);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .output-header h3 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .copy-btn {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--background-color);
+            background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow-color);
+        }
+
+        .output-box {
+            background-color: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 0.5rem;
+            color: var(--text-color);
+            font-size: 0.95rem;
+        }
+        
+        .prompt-text {
+            background-color: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            font-style: normal;
+            text-align: left;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .preview-output-img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            margin-top: 1rem;
+        }
+
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 0;
+        }
+        
+        .loader {
+          border: 4px solid var(--border-color);
+          border-top: 4px solid var(--primary-color);
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        #drop-zone-status {
+            color: var(--primary-color);
+            font-weight: 500;
+            margin-top: 1rem;
+            height: 20px;
+            pointer-events: none;
+        }
+
+        #drag-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 46, 0.9);
+            border: 4px dashed var(--primary-color);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        
+        #drag-overlay-text {
+            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .variants-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .variant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .variant-text {
+            color: var(--text-color);
+            font-size: 0.95rem;
+        }
+
+        #bottom-reset-btn {
+            padding: 12px 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="drag-overlay">
+        <p id="drag-overlay-text">Drop your images anywhere</p>
+    </div>
+
+    <main class="main-container">
+        <section>
+            <h2 id="reset-btn">ETSY Title & Description Extractor</h2>
+            <p class="description-text">Drop two images. The smaller becomes the <span class="highlight">Title</span>, the larger becomes the <span class="highlight">Description</span>.</p>
+        </section>
+
+        <section>
+            <div>
+                <input type="file" id="file-input" class="visually-hidden" accept="image/*" multiple>
+                <div id="drop-zone" class="drop-zone">
+                    <p class="drop-zone-text">Drag & drop two images here</p>
+                    <p class="drop-zone-subtext">or click to browse</p>
+                    <p id="drop-zone-status"></p>
+                </div>
+            </div>
+
+            <div id="output-section" class="mt-8"></div>
+            
+            <div id="bottom-reset-container" style="display: none; text-align: center; margin-top: 2.5rem;">
+                <button id="bottom-reset-btn" class="copy-btn">Reset</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const outputSection = document.getElementById('output-section');
+        const dropZoneStatus = document.getElementById('drop-zone-status');
+        const resetBtn = document.getElementById('reset-btn');
+        const dragOverlay = document.getElementById('drag-overlay');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const bottomResetContainer = document.getElementById('bottom-reset-container');
+        const bottomResetBtn = document.getElementById('bottom-reset-btn');
+
+        function resetApp() {
+            outputSection.innerHTML = '';
+            dropZoneStatus.textContent = '';
+            bottomResetContainer.style.display = 'none';
+        }
+
+        resetBtn.addEventListener('click', resetApp);
+        bottomResetBtn.addEventListener('click', resetApp);
+
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragOverlay.style.display = 'flex';
+        });
+
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        window.addEventListener('dragleave', (e) => {
+            if (e.clientX === 0 || e.clientY === 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+                 dragOverlay.style.display = 'none';
+            }
+        });
+        
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragOverlay.style.display = 'none';
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            handleFiles(fileInput.files);
+        });
+
+        async function handleFiles(files) {
+            outputSection.innerHTML = ''; 
+            bottomResetContainer.style.display = 'none';
+
+            if (files.length !== 2) {
+                alert("Please select or drop exactly two image files.");
+                return;
+            }
+
+            if (!files[0].type.startsWith('image/') || !files[1].type.startsWith('image/')) {
+                alert("Please ensure both files are images.");
+                return;
+            }
+            
+            dropZoneStatus.textContent = "Processing images...";
+
+            try {
+                const imageInfos = await Promise.all([
+                    getImageInfo(files[0]),
+                    getImageInfo(files[1])
+                ]);
+
+                imageInfos.sort((a, b) => a.height - b.height);
+
+                const titleFile = imageInfos[0].file;
+                const titleDataUrl = imageInfos[0].dataUrl;
+                const descriptionFile = imageInfos[1].file;
+                const descriptionDataUrl = imageInfos[1].dataUrl;
+                
+                dropZoneStatus.textContent = "Images loaded. Extracting text...";
+                await startExtraction(titleFile, titleDataUrl, descriptionFile, descriptionDataUrl);
+                dropZoneStatus.textContent = "Extraction complete!";
+
+            } catch (error) {
+                console.error("Error handling files:", error);
+                alert("Could not read one or both of the image files.");
+                dropZoneStatus.textContent = "Error loading images.";
+            }
+        }
+
+        function getImageInfo(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    const img = new Image();
+                    img.onload = () => {
+                        resolve({ width: img.naturalWidth, height: img.naturalHeight, file: file, dataUrl: dataUrl });
+                    };
+                    img.onerror = reject;
+                    img.src = dataUrl;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        async function startExtraction(titleFile, titleDataUrl, descriptionFile, descriptionDataUrl) {
+            const titleOutputWrapper = createOutputElement("Title", titleDataUrl);
+            const descOutputWrapper = createOutputElement("Description", descriptionDataUrl);
+            
+            outputSection.appendChild(titleOutputWrapper);
+            outputSection.appendChild(descOutputWrapper);
+
+            const titleLoader = titleOutputWrapper.querySelector('.loader-container');
+            const descLoader = descOutputWrapper.querySelector('.loader-container');
+            
+            titleLoader.style.display = 'flex';
+            descLoader.style.display = 'flex';
+
+            const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space.";
+            const descriptionPrompt = "Extract all text from this image as accurately as possible. It is critical that you preserve the original bullet point characters (e.g., •, ✔, -, *, etc.) exactly as they appear in the image. Do not replace them with a different character. If you see 'About this item', remove it from the output. Ensure that the full text for each bullet point appears on a single, unbroken line, with each new bullet point starting on a new line.";
+            
+            await Promise.all([
+                convertImageToText(titleFile, titleOutputWrapper.querySelector('.output-box'), titleLoader, titlePrompt),
+                convertImageToText(descriptionFile, descOutputWrapper.querySelector('.output-box'), descLoader, descriptionPrompt)
+            ]);
+            
+            const keywordWrapper = createPromptOnlyElement("Keyword", `Using the previously generated Etsy product title and description, identify 25 high-impact, SEO-friendly keywords tailored for the United States market. \nFocus on search trends, buyer intent, and keyword competitiveness within the Etsy platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
+            
+            const tagWrapper = createPromptOnlyElement("Tag", `Using our previous conversation and relevant keyword/tag research from Etsy and other marketplaces, generate 13 powerful, SEO-optimized Etsy tags that are tailored for U.S. shoppers. \nEach tag must be 20 characters or fewer. \nTags should be high-ranking, search-relevant, and buyer-focused. \nThink like an experienced, data-driven Etsy seller targeting high visibility and conversions.`);
+
+            const descTagWrapper = createPromptOnlyElement("Description Tag/ Keyword", `Based on our earlier discussion and current SEO trends, generate a list of high-performing tags/keywords to be added directly within my Etsy product description to increase visibility and ranking on search engines and Etsy. \nProvide only the keywords/tags in a copy-ready format. \nSuggest where in the description these should be inserted (e.g., opening paragraph, bullet points, ending). \nRecommend the ideal number of keywords to use for best SEO without keyword stuffing. \nTarget U.S.-based customers and Etsy search behavior. \nAvoid duplicating tags already used in the title.`);
+            
+            const variantsWrapper = createVariantsElement();
+
+            outputSection.appendChild(keywordWrapper);
+            outputSection.appendChild(tagWrapper);
+            outputSection.appendChild(descTagWrapper);
+            outputSection.appendChild(variantsWrapper);
+
+            bottomResetContainer.style.display = 'block';
+            outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function createOutputElement(label, dataUrl) {
+            const div = document.createElement('div');
+            div.className = 'output-wrapper';
+            
+            let promptHtml = '';
+            if (label === 'Title') {
+                promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy search trends. Focus on clarity, search intent, and character count limit (140 characters max). Use the following text:</div>`;
+            } else if (label === 'Description') {
+                promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy search trends, and naturally incorporate relevant keywords.<br>Use the text below as the base. Replace any ✔ symbols with suitable emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
+            }
+
+            div.innerHTML = `
+                <div class="output-header">
+                    <h3>${label}</h3>
+                    <button class="copy-btn">Copy</button>
+                </div>
+                ${promptHtml}
+                <div class="loader-container" style="display: flex;">
+                    <div class="loader"></div>
+                </div>
+                <div class="output-box"></div>
+                <img src="${dataUrl}" class="preview-output-img">
+            `;
+            return div;
+        }
+
+        function createPromptOnlyElement(label, promptText) {
+            const div = document.createElement('div');
+            div.className = 'output-wrapper';
+            div.innerHTML = `
+                <div class="output-header">
+                    <h3>${label}</h3>
+                    <button class="copy-btn">Copy</button>
+                </div>
+                <div class="prompt-text">${promptText.replace(/\n/g, '<br>')}</div>
+            `;
+            return div;
+        }
+
+        function createVariantsElement() {
+            const div = document.createElement('div');
+            div.className = 'output-wrapper';
+            div.innerHTML = `
+                <div class="output-header">
+                    <h3>Variants</h3>
+                </div>
+                <div class="variants-container">
+                    <div class="variant-item"><span class="variant-text">Side</span><button class="copy-btn">Copy</button></div>
+                    <div class="variant-item"><span class="variant-text">Driver's Side</span><button class="copy-btn">Copy</button></div>
+                    <div class="variant-item"><span class="variant-text">Passenger's Side</span><button class="copy-btn">Copy</button></div>
+                    <div class="variant-item"><span class="variant-text">Both Sides</span><button class="copy-btn">Copy</button></div>
+                </div>
+            `;
+            return div;
+        }
+        
+        outputSection.addEventListener('click', (e) => {
+            if (e.target.classList.contains('copy-btn')) {
+                const wrapper = e.target.closest('.output-wrapper');
+                const variantItem = e.target.closest('.variant-item');
+                
+                let textToCopy = '';
+
+                if (variantItem) {
+                    const variantText = variantItem.querySelector('.variant-text');
+                    textToCopy = variantText.textContent.trim();
+                } else {
+                    const outputBox = wrapper.querySelector('.output-box');
+                    const promptBox = wrapper.querySelector('.prompt-text'); 
+                
+                    if (promptBox) {
+                        // FIX: Replaced textContent with a method that preserves line breaks.
+                        textToCopy = promptBox.innerHTML.replace(/<br>/g, "\n").trim();
+                    }
+
+                    if (outputBox && outputBox.textContent) {
+                        textToCopy += `\n${outputBox.textContent.trim()}`;
+                    }
+                }
+
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed'; 
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    e.target.textContent = 'Copied!';
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    e.target.textContent = 'Error';
+                }
+                setTimeout(() => {
+                    e.target.textContent = 'Copy';
+                }, 2000);
+                document.body.removeChild(textArea);
+            }
+        });
+
+        async function convertImageToText(file, outputElement, loaderElement, prompt) {
+            const base64ImageData = await toBase64(file);
+
+            const payload = {
+              contents: [{
+                    role: "user",
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: file.type, data: base64ImageData } }
+                    ]
+                }],
+            };
+            
+            const apiKey = "AIzaSyActZARdw5HqYmMEZXLdZ1AS1r1RtlbWIk";
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("API Error Response:", errorData);
+                    throw new Error(errorData.error.message || `API request failed with status ${response.status}.`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0]?.content?.parts[0]) {
+                    outputElement.textContent = result.candidates[0].content.parts[0].text;
+                } else if (result.candidates && result.candidates[0]?.finishReason) {
+                     outputElement.textContent = `Text extraction stopped. Reason: ${result.candidates[0].finishReason}`;
+                }
+                else {
+                    console.error('Unexpected API response structure:', result);
+                    outputElement.textContent = "Could not extract text from this image.";
+                }
+
+            } catch (error) {
+                console.error('Full Error:', error);
+                outputElement.textContent = `Error: ${error.message}`;
+            } finally {
+                loaderElement.style.display = 'none';
+            }
+        }
+
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+    </script>
+</body>
+</html>
