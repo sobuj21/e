@@ -441,8 +441,9 @@
             
             titleLoader.style.display = 'flex';
             descLoader.style.display = 'flex';
-
-            const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space.";
+            
+            // FIX: Updated the title prompt with the new formatting rule.
+            const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space. If you find any text enclosed in parentheses, like (some text), you must remove the parentheses and prepend the text with ' | ' (space, pipe, space). For example, '(Cross Mountain)' should become ' | Cross Mountain'.";
             const descriptionPrompt = "Extract all text from this image as accurately as possible. It is critical that you preserve the original bullet point characters (e.g., •, ✔, -, *, etc.) exactly as they appear in the image. Do not replace them with a different character. If you see 'About this item', remove it from the output. Ensure that the full text for each bullet point appears on a single, unbroken line, with each new bullet point starting on a new line.";
             
             await Promise.all([
@@ -538,7 +539,6 @@
                     const promptBox = wrapper.querySelector('.prompt-text'); 
                 
                     if (promptBox) {
-                        // FIX: Replaced textContent with a method that preserves line breaks.
                         textToCopy = promptBox.innerHTML.replace(/<br>/g, "\n").trim();
                     }
 
