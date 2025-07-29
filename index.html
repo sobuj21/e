@@ -451,11 +451,11 @@
                 convertImageToText(descriptionFile, descOutputWrapper.querySelector('.output-box'), descLoader, descriptionPrompt)
             ]);
             
-            const keywordWrapper = createPromptOnlyElement("Keyword", `Using the previously generated Etsy product title and description, identify 25 high-impact, SEO-friendly keywords tailored for the United States market. \nFocus on search trends, buyer intent, and keyword competitiveness within the Etsy platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
+            const keywordWrapper = createPromptOnlyElement("Keyword", `Using the previously generated Etsy product title and description, identify 25 high-impact, SEO-friendly keywords tailored for the United States market. \nFocus on search trends, buyer intent, and keyword competitiveness within the Etsy, Amazon and other E-commerce platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
             
             const tagWrapper = createPromptOnlyElement("Tag", `Using our previous conversation and relevant keyword/tag research from Etsy and other marketplaces, generate 13 powerful, SEO-optimized Etsy tags that are tailored for U.S. shoppers. \nEach tag must be 20 characters or fewer. \nTags should be high-ranking, search-relevant, and buyer-focused. \nThink like an experienced, data-driven Etsy seller targeting high visibility and conversions.`);
 
-            const descTagWrapper = createPromptOnlyElement("Description Tag/ Keyword", `Based on our earlier discussion and current SEO trends, generate a list of high-performing tags/keywords to be added directly within my Etsy product description to increase visibility and ranking on search engines and Etsy. \nProvide only the keywords/tags in a copy-ready format. \nSuggest where in the description these should be inserted (e.g., opening paragraph, bullet points, ending). \nRecommend the ideal number of keywords to use for best SEO without keyword stuffing. \nTarget U.S.-based customers and Etsy search behavior. \nAvoid duplicating tags already used in the title.`);
+            const descTagWrapper = createPromptOnlyElement("Description Keyword", `Based on our earlier discussion and current SEO trends, generate a list of high-performing keywords to be added directly within my Etsy product description to increase visibility and ranking on search engines and Etsy. \nProvide only the keywords in a copy-ready format. \nSuggest where in the description these should be inserted (e.g., opening paragraph, bullet points, ending). \nRecommend the ideal number of keywords to use for best SEO without keyword stuffing. \nTarget U.S.-based customers and Etsy search behavior. \nAvoid duplicating tags already used in the title and 13 Tags.`);
             
             const variantsWrapper = createVariantsElement();
 
@@ -474,9 +474,9 @@
             
             let promptHtml = '';
             if (label === 'Title') {
-                promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy search trends. Focus on clarity, search intent, and character count limit (140 characters max). Use the following text:</div>`;
+                promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy, Amazon and other E-commerce platform search trends. Focus on clarity, search intent, and character count limit (140 characters max). Use the following text:</div>`;
             } else if (label === 'Description') {
-                promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy search trends, and naturally incorporate relevant keywords.<br>Use the text below as the base. Replace any ✔ symbols with suitable emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
+                promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy, Amazon and other E-commerce platform search trends, and naturally incorporate relevant keywords.<br>Use the title and the text below as the base. Replace any ✔ symbols with suitable emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
             }
 
             div.innerHTML = `
