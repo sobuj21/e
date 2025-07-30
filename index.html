@@ -6,7 +6,7 @@
     <title>ETSY Title & Description Extractor | Extract Text from Images</title>
     <meta name="description" content="A smart tool to extract text from two images. Automatically identifies the smaller image as a title and the larger one as a description. Just drag and drop two images to start.">
     <meta name="keywords" content="photo to text, image to text, ocr, text extractor, etsy title, etsy description, image sorting, automatic title description, copy text">
-    <meta name="author" content="Aurtho">
+    <meta name="author" content="Your Name or Company Name">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -25,6 +25,8 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='15' fill='%23F1641E'/%3E%3Ctext x='50' y='68' font-size='60' fill='%23FFFFFF' text-anchor='middle' font-family='Poppins, sans-serif' font-weight='600'%3EE%3C/text%3E%3C/svg%3E">
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Tesseract.js Library -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         :root {
             --background-color: #1a1a2e;
@@ -283,10 +285,25 @@
             font-size: 0.95rem;
         }
 
+        #bottom-reset-container {
+            display: none;
+            text-align: center;
+            margin-top: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
         #bottom-reset-btn {
             padding: 12px 50px;
             font-size: 1.1rem;
             font-weight: 600;
+        }
+
+        #ocr-engine-display {
+            font-size: 0.9rem;
+            color: var(--light-text-color);
         }
 
         @keyframes spin {
@@ -318,7 +335,8 @@
 
             <div id="output-section" class="mt-8"></div>
             
-            <div id="bottom-reset-container" style="display: none; text-align: center; margin-top: 2.5rem;">
+            <div id="bottom-reset-container">
+                <span id="ocr-engine-display"></span>
                 <button id="bottom-reset-btn" class="copy-btn">Reset</button>
             </div>
         </section>
@@ -333,11 +351,19 @@
         const fileInput = document.getElementById('file-input');
         const bottomResetContainer = document.getElementById('bottom-reset-container');
         const bottomResetBtn = document.getElementById('bottom-reset-btn');
+        const ocrEngineDisplay = document.getElementById('ocr-engine-display');
+        
+        const apiKeys = [
+            "AIzaSyCtVl9wyefRnkjxBTiRSIeGIMEzjTbyiFY",
+            "AIzaSyB2w2vQ-unTmsxziZoOm8bbKY66n7BbJjM"
+        ];
+        let currentApiKeyIndex = 0;
 
         function resetApp() {
             outputSection.innerHTML = '';
             dropZoneStatus.textContent = '';
             bottomResetContainer.style.display = 'none';
+            ocrEngineDisplay.textContent = '';
         }
 
         resetBtn.addEventListener('click', resetApp);
@@ -375,6 +401,8 @@
         async function handleFiles(files) {
             outputSection.innerHTML = ''; 
             bottomResetContainer.style.display = 'none';
+            ocrEngineDisplay.textContent = '';
+            currentApiKeyIndex = 0;
 
             if (files.length !== 2) {
                 alert("Please select or drop exactly two image files.");
@@ -441,21 +469,27 @@
             
             titleLoader.style.display = 'flex';
             descLoader.style.display = 'flex';
-            
-            // FIX: Updated the title prompt with the new formatting rule.
+
             const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space. If you find any text enclosed in parentheses, like (some text), you must remove the parentheses and prepend the text with ' | ' (space, pipe, space). For example, '(Cross Mountain)' should become ' | Cross Mountain'.";
-            const descriptionPrompt = "Extract all text from this image as accurately as possible. It is critical that you preserve the original bullet point characters (e.g., •, ✔, -, *, etc.) exactly as they appear in the image. Do not replace them with a different character. If you see 'About this item', remove it from the output. Ensure that the full text for each bullet point appears on a single, unbroken line, with each new bullet point starting on a new line.";
+            const descriptionPrompt = "Extract all text from this image. Follow these rules strictly: 1. Remove the text 'About this item'. 2. If a line starts with a symbol like '.', '•', '✔', or '«', remove that symbol from the beginning of the line. 3. If a line is just a horizontal dash '—', replace it with a hyphen '-'. 4. Ensure each distinct point or sentence starts on a new line. 5. Consolidate any text that belongs to a single point onto one line.";
             
-            await Promise.all([
-                convertImageToText(titleFile, titleOutputWrapper.querySelector('.output-box'), titleLoader, titlePrompt),
-                convertImageToText(descriptionFile, descOutputWrapper.querySelector('.output-box'), descLoader, descriptionPrompt)
-            ]);
+            const titleResult = await convertImageToText(titleFile, titleLoader, titlePrompt, 'Title');
+            const descriptionResult = await convertImageToText(descriptionFile, descLoader, descriptionPrompt, 'Description');
+
+            titleOutputWrapper.querySelector('.output-box').textContent = titleResult.text;
+            descOutputWrapper.querySelector('.output-box').textContent = descriptionResult.text;
             
-            const keywordWrapper = createPromptOnlyElement("Keyword", `Using the previously generated Etsy product title and description, identify 25 high-impact, SEO-friendly keywords tailored for the United States market. \nFocus on search trends, buyer intent, and keyword competitiveness within the Etsy, Amazon and other E-commerce platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
+            if (titleResult.engine === descriptionResult.engine) {
+                ocrEngineDisplay.textContent = `By ${titleResult.engine}`;
+            } else {
+                ocrEngineDisplay.textContent = `By ${titleResult.engine} & ${descriptionResult.engine}`;
+            }
+            
+            const keywordWrapper = createPromptOnlyElement("Keyword", `Focusing on Etsy, Amazon and other E-commerce platform search trends and using the previously generated Etsy product title and description, generate 25 high-impactful, SEO-friendly keywords tailored for the United States market. \nFocus on search trends, buyer intention, and keyword competitiveness within the Etsy, Amazon and other E-commerce platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
             
             const tagWrapper = createPromptOnlyElement("Tag", `Using our previous conversation and relevant keyword/tag research from Etsy and other marketplaces, generate 13 powerful, SEO-optimized Etsy tags that are tailored for U.S. shoppers. \nEach tag must be 20 characters or fewer. \nTags should be high-ranking, search-relevant, and buyer-focused. \nThink like an experienced, data-driven Etsy seller targeting high visibility and conversions.`);
 
-            const descTagWrapper = createPromptOnlyElement("Description Keyword", `Based on our earlier discussion and current SEO trends, generate a list of high-performing keywords to be added directly within my Etsy product description to increase visibility and ranking on search engines and Etsy. \nProvide only the keywords in a copy-ready format. \nSuggest where in the description these should be inserted (e.g., opening paragraph, bullet points, ending). \nRecommend the ideal number of keywords to use for best SEO without keyword stuffing. \nTarget U.S.-based customers and Etsy search behavior. \nAvoid duplicating tags already used in the title and 13 Tags.`);
+            const descTagWrapper = createPromptOnlyElement("Description Tag/ Keyword", `Based on our earlier discussion and current SEO trends, generate a list of high-performing keywords to be added directly within my Etsy product description to increase visibility and ranking on search engines and Etsy. \nProvide only the keywords in a ready to use and copy-ready format. \nSuggest where in the description these should be inserted (e.g., opening paragraph, bullet points, ending). \nRecommend the ideal number of keywords to use for best SEO without keyword stuffing. \nTarget U.S.-based customers and Etsy and other platform search behavior. \nAvoid duplicating tags already used in the title, description, 25 keywords and 13 Tags.`);
             
             const variantsWrapper = createVariantsElement();
 
@@ -464,7 +498,7 @@
             outputSection.appendChild(descTagWrapper);
             outputSection.appendChild(variantsWrapper);
 
-            bottomResetContainer.style.display = 'block';
+            bottomResetContainer.style.display = 'flex';
             outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -476,7 +510,7 @@
             if (label === 'Title') {
                 promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy, Amazon and other E-commerce platform search trends. Focus on clarity, search intent, and character count limit (140 characters max). Use the following text:</div>`;
             } else if (label === 'Description') {
-                promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy, Amazon and other E-commerce platform search trends, and naturally incorporate relevant keywords.<br>Use the title and the text below as the base. Replace any ✔ symbols with suitable emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
+                promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy, Amazon and other E-commerce platform search trends, and naturally incorporate relevant keywords.<br>Use the title and the text below as the base. Replace any ✔ symbols with suitable and related emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
             }
 
             div.innerHTML = `
@@ -539,7 +573,7 @@
                     const promptBox = wrapper.querySelector('.prompt-text'); 
                 
                     if (promptBox) {
-                        textToCopy = promptBox.innerHTML.replace(/<br>/g, "\n").trim();
+                        textToCopy = promptBox.innerHTML.replace(/<br\s*\/?>/gi, "\n").trim();
                     }
 
                     if (outputBox && outputBox.textContent) {
@@ -567,54 +601,97 @@
             }
         });
 
-        async function convertImageToText(file, outputElement, loaderElement, prompt) {
-            const base64ImageData = await toBase64(file);
+        async function convertImageToText(file, loaderElement, prompt, type) {
+            if (currentApiKeyIndex >= apiKeys.length) {
+                console.log("All Gemini API keys failed or are exhausted. Falling back to Tesseract.");
+                return await convertImageWithTesseract(file, loaderElement, type);
+            }
 
-            const payload = {
-              contents: [{
-                    role: "user",
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: file.type, data: base64ImageData } }
-                    ]
-                }],
-            };
-            
-            const apiKey = "AIzaSyActZARdw5HqYmMEZXLdZ1AS1r1RtlbWIk";
-            
+            const apiKey = apiKeys[currentApiKeyIndex];
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             
             try {
+                const base64ImageData = await toBase64(file);
+                const payload = {
+                  contents: [{
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            { inlineData: { mimeType: file.type, data: base64ImageData } }
+                        ]
+                    }],
+                };
+                
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
+                if (response.status === 429 || response.status === 400) {
+                    console.warn(`API key ${currentApiKeyIndex + 1} failed with status ${response.status}. Trying next key.`);
+                    currentApiKeyIndex++;
+                    return await convertImageToText(file, loaderElement, prompt, type);
+                }
+
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error("API Error Response:", errorData);
                     throw new Error(errorData.error.message || `API request failed with status ${response.status}.`);
                 }
                 
                 const result = await response.json();
                 
                 if (result.candidates && result.candidates[0]?.content?.parts[0]) {
-                    outputElement.textContent = result.candidates[0].content.parts[0].text;
+                    loaderElement.style.display = 'none';
+                    return { text: result.candidates[0].content.parts[0].text, engine: 'Gemini' };
                 } else if (result.candidates && result.candidates[0]?.finishReason) {
-                     outputElement.textContent = `Text extraction stopped. Reason: ${result.candidates[0].finishReason}`;
+                     throw new Error(`Text extraction stopped. Reason: ${result.candidates[0].finishReason}`);
+                } else {
+                    throw new Error("Could not extract text from this image.");
                 }
-                else {
-                    console.error('Unexpected API response structure:', result);
-                    outputElement.textContent = "Could not extract text from this image.";
-                }
-
             } catch (error) {
-                console.error('Full Error:', error);
-                outputElement.textContent = `Error: ${error.message}`;
+                console.error(`Error with API Key ${currentApiKeyIndex + 1}:`, error);
+                currentApiKeyIndex++;
+                return await convertImageToText(file, loaderElement, prompt, type);
+            }
+        }
+
+        async function convertImageWithTesseract(file, loaderElement, type) {
+            try {
+                const worker = await Tesseract.createWorker('eng');
+                const ret = await worker.recognize(file);
+                await worker.terminate();
+                const rawText = ret.data.text;
+                const formattedText = formatTesseractOutput(rawText, type);
+                return { text: formattedText, engine: 'Tesseract' };
+            } catch (error) {
+                console.error("Tesseract Error:", error);
+                return { text: "Error processing with Tesseract.", engine: 'Tesseract' };
             } finally {
                 loaderElement.style.display = 'none';
             }
+        }
+
+        function formatTesseractOutput(rawText, type) {
+            if (type === 'Title') {
+                let text = rawText.replace(/\n/g, ' ').trim();
+                text = text.replace(/\((.*?)\)/g, ' | $1');
+                return text;
+            } else if (type === 'Description') {
+                let text = rawText.replace(/About this item/gi, '').trim();
+                text = text.replace(/«/g, ''); 
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                const processedLines = [];
+                
+                lines.forEach(line => {
+                    let processedLine = line.trim();
+                    processedLine = processedLine.replace(/^[•.✔*-]\s*/, '');
+                    processedLine = processedLine.replace(/—/g, '-');
+                    processedLines.push(processedLine);
+                });
+                return processedLines.join('\n');
+            }
+            return rawText;
         }
 
         function toBase64(file) {
