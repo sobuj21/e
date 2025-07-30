@@ -353,11 +353,46 @@
         const bottomResetBtn = document.getElementById('bottom-reset-btn');
         const ocrEngineDisplay = document.getElementById('ocr-engine-display');
         
-        const apiKeys = [
+        const allApiKeys = [
             "AIzaSyCtVl9wyefRnkjxBTiRSIeGIMEzjTbyiFY",
-            "AIzaSyB2w2vQ-unTmsxziZoOm8bbKY66n7BbJjM"
+            "AIzaSyB2w2vQ-unTmsxziZoOm8bbKY66n7BbJjM",
+            "AIzaSyActZARdw5HqYmMEZXLdZ1AS1r1RtlbWIk",
+            "AIzaSyCY_npBUie2u-g4jJZAdNiiWqpIf26UwfQ",
+            "AIzaSyA_msAroJeyWrEL9MR0Zm93BXTdKPUYa-U"
         ];
-        let currentApiKeyIndex = 0;
+        let availableApiKeys = [];
+
+        function loadAvailableApiKeys() {
+            const now = new Date().getTime();
+            let cooldowns = {};
+            try {
+                cooldowns = JSON.parse(localStorage.getItem('apiKeyCooldowns')) || {};
+            } catch (e) {
+                console.error("Could not parse API key cooldowns from localStorage.", e);
+            }
+
+            availableApiKeys = allApiKeys.filter(key => {
+                const expiry = cooldowns[key];
+                return !expiry || now > expiry;
+            });
+
+            if (availableApiKeys.length === 0) {
+                console.warn("All API keys are currently on a 24-hour cooldown.");
+            }
+        }
+
+        function setApiKeyCooldown(apiKey) {
+            let cooldowns = {};
+             try {
+                cooldowns = JSON.parse(localStorage.getItem('apiKeyCooldowns')) || {};
+            } catch (e) {
+                console.error("Could not parse API key cooldowns from localStorage.", e);
+            }
+            const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
+            cooldowns[apiKey] = expiryTime;
+            localStorage.setItem('apiKeyCooldowns', JSON.stringify(cooldowns));
+            console.log(`API Key ending in ${apiKey.slice(-4)} has been put on a 24-hour cooldown.`);
+        }
 
         function resetApp() {
             outputSection.innerHTML = '';
@@ -402,7 +437,7 @@
             outputSection.innerHTML = ''; 
             bottomResetContainer.style.display = 'none';
             ocrEngineDisplay.textContent = '';
-            currentApiKeyIndex = 0;
+            loadAvailableApiKeys();
 
             if (files.length !== 2) {
                 alert("Please select or drop exactly two image files.");
@@ -473,8 +508,10 @@
             const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space. If you find any text enclosed in parentheses, like (some text), you must remove the parentheses and prepend the text with ' | ' (space, pipe, space). For example, '(Cross Mountain)' should become ' | Cross Mountain'.";
             const descriptionPrompt = "Extract all text from this image. Follow these rules strictly: 1. Remove the text 'About this item'. 2. If a line starts with a symbol like '.', '•', '✔', or '«', remove that symbol from the beginning of the line. 3. If a line is just a horizontal dash '—', replace it with a hyphen '-'. 4. Ensure each distinct point or sentence starts on a new line. 5. Consolidate any text that belongs to a single point onto one line.";
             
-            const titleResult = await convertImageToText(titleFile, titleLoader, titlePrompt, 'Title');
-            const descriptionResult = await convertImageToText(descriptionFile, descLoader, descriptionPrompt, 'Description');
+            const [titleResult, descriptionResult] = await Promise.all([
+                convertImageToText(titleFile, titleLoader, titlePrompt, 'Title'),
+                convertImageToText(descriptionFile, descLoader, descriptionPrompt, 'Description')
+            ]);
 
             titleOutputWrapper.querySelector('.output-box').textContent = titleResult.text;
             descOutputWrapper.querySelector('.output-box').textContent = descriptionResult.text;
@@ -602,12 +639,13 @@
         });
 
         async function convertImageToText(file, loaderElement, prompt, type) {
-            if (currentApiKeyIndex >= apiKeys.length) {
-                console.log("All Gemini API keys failed or are exhausted. Falling back to Tesseract.");
+            const apiKey = availableApiKeys[0];
+            
+            if (!apiKey) {
+                console.log("No available Gemini API keys. Falling back to Tesseract.");
                 return await convertImageWithTesseract(file, loaderElement, type);
             }
 
-            const apiKey = apiKeys[currentApiKeyIndex];
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             
             try {
@@ -628,9 +666,10 @@
                     body: JSON.stringify(payload)
                 });
 
-                if (response.status === 429 || response.status === 400) {
-                    console.warn(`API key ${currentApiKeyIndex + 1} failed with status ${response.status}. Trying next key.`);
-                    currentApiKeyIndex++;
+                if (response.status === 429) {
+                    console.warn(`API key ending in ${apiKey.slice(-4)} has reached its limit. Placing on 24hr cooldown.`);
+                    setApiKeyCooldown(apiKey);
+                    availableApiKeys.shift();
                     return await convertImageToText(file, loaderElement, prompt, type);
                 }
 
@@ -644,15 +683,12 @@
                 if (result.candidates && result.candidates[0]?.content?.parts[0]) {
                     loaderElement.style.display = 'none';
                     return { text: result.candidates[0].content.parts[0].text, engine: 'Gemini' };
-                } else if (result.candidates && result.candidates[0]?.finishReason) {
-                     throw new Error(`Text extraction stopped. Reason: ${result.candidates[0].finishReason}`);
                 } else {
-                    throw new Error("Could not extract text from this image.");
+                     throw new Error(result.candidates[0]?.finishReason || "Could not extract text from this image.");
                 }
             } catch (error) {
-                console.error(`Error with API Key ${currentApiKeyIndex + 1}:`, error);
-                currentApiKeyIndex++;
-                return await convertImageToText(file, loaderElement, prompt, type);
+                console.error(`Error with Gemini:`, error);
+                return await convertImageWithTesseract(file, loaderElement, type);
             }
         }
 
@@ -702,6 +738,8 @@
                 reader.onerror = error => reject(error);
             });
         }
+        
+        loadAvailableApiKeys();
     </script>
 </body>
 </html>
