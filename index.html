@@ -7,6 +7,7 @@
     <meta name="description" content="A smart tool to extract text from two images. Automatically identifies the smaller image as a title and the larger one as a description. Just drag and drop two images to start.">
     <meta name="keywords" content="photo to text, image to text, ocr, text extractor, etsy title, etsy description, image sorting, automatic title description, copy text">
     <meta name="author" content="Your Name or Company Name">
+    <meta name="robots" content="noindex">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -37,6 +38,7 @@
             --light-text-color: #a0a0c0;
             --border-color: rgba(0, 168, 255, 0.3);
             --shadow-color: rgba(0, 168, 255, 0.2);
+            --error-color: #ff4757;
         }
 
         * {
@@ -306,6 +308,29 @@
             color: var(--light-text-color);
         }
 
+        .error-notification {
+            background-color: rgba(255, 71, 87, 0.2);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .error-notification p {
+            margin: 0;
+            font-weight: 500;
+        }
+         .error-notification ul {
+            margin: 0.5rem 0 0 1rem;
+            padding: 0;
+        }
+         .error-notification li {
+            list-style-type: disc;
+            margin-left: 1rem;
+        }
+
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -318,6 +343,7 @@
     </div>
 
     <main class="main-container">
+        <div id="error-notification-container"></div>
         <section>
             <h2 id="reset-btn">ETSY Title & Description Extractor</h2>
             <p class="description-text">Drop two images. The smaller becomes the <span class="highlight">Title</span>, the larger becomes the <span class="highlight">Description</span>.</p>
@@ -352,8 +378,15 @@
         const bottomResetContainer = document.getElementById('bottom-reset-container');
         const bottomResetBtn = document.getElementById('bottom-reset-btn');
         const ocrEngineDisplay = document.getElementById('ocr-engine-display');
+        const errorNotificationContainer = document.getElementById('error-notification-container');
         
         const allApiKeys = [
+            "AIzaSyBIv6f8J79DpVxNVXYXuKwWz0Br7SL9pos",
+            "AIzaSyCbzdBqP2oDqiqGfqfUnmQiCveO7yhH15Q",
+            "AIzaSyBYGb4prT15I2vMeI9miV-9aUd5ZxM8c8o",
+            "AIzaSyCCm0SzD1D2GQFFyMXXokyYcBXE-7kYNpc",
+            "AIzaSyB8FTScDPiDHWrTYUJ2GaFV4mCtUeJnh24",
+            "AIzaSyBMMrlAZrfqx53J39T7J9C8X5aebggAcaE",
             "AIzaSyCtVl9wyefRnkjxBTiRSIeGIMEzjTbyiFY",
             "AIzaSyB2w2vQ-unTmsxziZoOm8bbKY66n7BbJjM",
             "AIzaSyActZARdw5HqYmMEZXLdZ1AS1r1RtlbWIk",
@@ -361,37 +394,62 @@
             "AIzaSyA_msAroJeyWrEL9MR0Zm93BXTdKPUYa-U"
         ];
         let availableApiKeys = [];
+        let currentApiKeyIndex = 0;
 
-        function loadAvailableApiKeys() {
-            const now = new Date().getTime();
-            let cooldowns = {};
+        const API_STATE_KEY = 'apiKeyStates';
+
+        function getApiKeyStates() {
             try {
-                cooldowns = JSON.parse(localStorage.getItem('apiKeyCooldowns')) || {};
+                return JSON.parse(localStorage.getItem(API_STATE_KEY)) || {};
             } catch (e) {
-                console.error("Could not parse API key cooldowns from localStorage.", e);
-            }
-
-            availableApiKeys = allApiKeys.filter(key => {
-                const expiry = cooldowns[key];
-                return !expiry || now > expiry;
-            });
-
-            if (availableApiKeys.length === 0) {
-                console.warn("All API keys are currently on a 24-hour cooldown.");
+                console.error("Could not parse API key states from localStorage.", e);
+                return {};
             }
         }
 
-        function setApiKeyCooldown(apiKey) {
-            let cooldowns = {};
-             try {
-                cooldowns = JSON.parse(localStorage.getItem('apiKeyCooldowns')) || {};
-            } catch (e) {
-                console.error("Could not parse API key cooldowns from localStorage.", e);
+        function setApiKeyState(apiKey, status, durationHours = 0) {
+            const states = getApiKeyStates();
+            const now = new Date().getTime();
+            states[apiKey] = {
+                status: status,
+                expiry: status === 'cooldown' ? now + (durationHours * 60 * 60 * 1000) : 0
+            };
+            localStorage.setItem(API_STATE_KEY, JSON.stringify(states));
+            console.log(`API Key ending in ${apiKey.slice(-4)} has been set to status: ${status}`);
+        }
+
+        function loadAvailableApiKeys() {
+            const now = new Date().getTime();
+            const states = getApiKeyStates();
+            availableApiKeys = allApiKeys.filter(key => {
+                const state = states[key];
+                if (!state) return true;
+                if (state.status === 'invalid') return false;
+                if (state.status === 'cooldown' && now < state.expiry) return false;
+                return true;
+            });
+
+            if (availableApiKeys.length === 0) {
+                console.warn("All API keys are currently unavailable.");
             }
-            const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-            cooldowns[apiKey] = expiryTime;
-            localStorage.setItem('apiKeyCooldowns', JSON.stringify(cooldowns));
-            console.log(`API Key ending in ${apiKey.slice(-4)} has been put on a 24-hour cooldown.`);
+            displayInvalidKeyErrors();
+        }
+
+        function displayInvalidKeyErrors() {
+            errorNotificationContainer.innerHTML = '';
+            const states = getApiKeyStates();
+            const invalidKeys = allApiKeys.filter(key => states[key] && states[key].status === 'invalid');
+            if (invalidKeys.length > 0) {
+                let errorHtml = '<p>The following API keys are permanently invalid and should be removed from the code:</p><ul>';
+                invalidKeys.forEach(key => {
+                    errorHtml += `<li>...${key.slice(-4)}</li>`;
+                });
+                errorHtml += '</ul>';
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-notification';
+                errorDiv.innerHTML = errorHtml;
+                errorNotificationContainer.appendChild(errorDiv);
+            }
         }
 
         function resetApp() {
@@ -404,46 +462,25 @@
         resetBtn.addEventListener('click', resetApp);
         bottomResetBtn.addEventListener('click', resetApp);
 
-        window.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragOverlay.style.display = 'flex';
-        });
-
-        window.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-
+        window.addEventListener('dragenter', (e) => { e.preventDefault(); dragOverlay.style.display = 'flex'; });
+        window.addEventListener('dragover', (e) => e.preventDefault());
         window.addEventListener('dragleave', (e) => {
             if (e.clientX === 0 || e.clientY === 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
                  dragOverlay.style.display = 'none';
             }
         });
-        
-        window.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dragOverlay.style.display = 'none';
-            handleFiles(e.dataTransfer.files);
-        });
-        
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', () => {
-            handleFiles(fileInput.files);
-        });
+        window.addEventListener('drop', (e) => { e.preventDefault(); dragOverlay.style.display = 'none'; handleFiles(e.dataTransfer.files); });
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
         async function handleFiles(files) {
-            outputSection.innerHTML = ''; 
-            bottomResetContainer.style.display = 'none';
-            ocrEngineDisplay.textContent = '';
+            resetApp();
             loadAvailableApiKeys();
 
             if (files.length !== 2) {
                 alert("Please select or drop exactly two image files.");
                 return;
             }
-
             if (!files[0].type.startsWith('image/') || !files[1].type.startsWith('image/')) {
                 alert("Please ensure both files are images.");
                 return;
@@ -452,17 +489,10 @@
             dropZoneStatus.textContent = "Processing images...";
 
             try {
-                const imageInfos = await Promise.all([
-                    getImageInfo(files[0]),
-                    getImageInfo(files[1])
-                ]);
-
+                const imageInfos = await Promise.all([getImageInfo(files[0]), getImageInfo(files[1])]);
                 imageInfos.sort((a, b) => a.height - b.height);
-
-                const titleFile = imageInfos[0].file;
-                const titleDataUrl = imageInfos[0].dataUrl;
-                const descriptionFile = imageInfos[1].file;
-                const descriptionDataUrl = imageInfos[1].dataUrl;
+                const [titleFile, descriptionFile] = [imageInfos[0].file, imageInfos[1].file];
+                const [titleDataUrl, descriptionDataUrl] = [imageInfos[0].dataUrl, imageInfos[1].dataUrl];
                 
                 dropZoneStatus.textContent = "Images loaded. Extracting text...";
                 await startExtraction(titleFile, titleDataUrl, descriptionFile, descriptionDataUrl);
@@ -481,9 +511,7 @@
                 reader.onload = (e) => {
                     const dataUrl = e.target.result;
                     const img = new Image();
-                    img.onload = () => {
-                        resolve({ width: img.naturalWidth, height: img.naturalHeight, file: file, dataUrl: dataUrl });
-                    };
+                    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight, file: file, dataUrl: dataUrl });
                     img.onerror = reject;
                     img.src = dataUrl;
                 };
@@ -495,16 +523,12 @@
         async function startExtraction(titleFile, titleDataUrl, descriptionFile, descriptionDataUrl) {
             const titleOutputWrapper = createOutputElement("Title", titleDataUrl);
             const descOutputWrapper = createOutputElement("Description", descriptionDataUrl);
-            
             outputSection.appendChild(titleOutputWrapper);
             outputSection.appendChild(descOutputWrapper);
 
             const titleLoader = titleOutputWrapper.querySelector('.loader-container');
             const descLoader = descOutputWrapper.querySelector('.loader-container');
             
-            titleLoader.style.display = 'flex';
-            descLoader.style.display = 'flex';
-
             const titlePrompt = "Extract all text from this image as accurately as possible. The output must be a single line of text, with any line breaks replaced by a single space. If you find any text enclosed in parentheses, like (some text), you must remove the parentheses and prepend the text with ' | ' (space, pipe, space). For example, '(Cross Mountain)' should become ' | Cross Mountain'.";
             const descriptionPrompt = "Extract all text from this image. Follow these rules strictly: 1. Remove the text 'About this item'. 2. If a line starts with a symbol like '.', '•', '✔', or '«', remove that symbol from the beginning of the line. 3. If a line is just a horizontal dash '—', replace it with a hyphen '-'. 4. Ensure each distinct point or sentence starts on a new line. 5. Consolidate any text that belongs to a single point onto one line.";
             
@@ -523,17 +547,14 @@
             }
             
             const keywordWrapper = createPromptOnlyElement("Keyword", `Focusing on Etsy, Amazon and other E-commerce platform search trends and using the previously generated Etsy product title and description, generate 25 high-impactful, SEO-friendly keywords in number list without any explanation tailored for the United States market. \nFocus on search trends, buyer intention, and keyword competitiveness within the Etsy, Amazon and other E-commerce platform. Keywords should be relevant, specific, and optimized to boost visibility and ranking in U.S. search results.`);
-            
             const tagWrapper = createPromptOnlyElement("Tag", `Using our previous conversation and relevant keyword/tag research from Etsy and other marketplaces, generate 13 powerful, SEO-optimized Etsy tags that are tailored for U.S. shoppers. \nEach tag must be 20 characters or fewer including space. \nTags should be high-ranking, search-relevant, and buyer-focused. \nThink like an experienced, data-driven Etsy seller targeting high visibility and conversions.`);
-
             const descTagWrapper = createPromptOnlyElement("Search Keywords", `Using our previous discussion and the latest U.S. SEO and Etsy trends, generate a list of high-performing, non-duplicate keywords to naturally embed within my Etsy product description. Provide only copy-ready keywords, suggest optimal insertion points (e.g., intro, bullets, ending), and recommend how many to include for maximum SEO impact without keyword stuffing. Ensure keywords are tailored for U.S. shoppers and exclude ones already in my title, description, 25 Etsy keywords, or 13 tags.`);
-            
             const variantsWrapper = createVariantsElement();
 
             outputSection.appendChild(keywordWrapper);
+            outputSection.appendChild(variantsWrapper);
             outputSection.appendChild(tagWrapper);
             outputSection.appendChild(descTagWrapper);
-            outputSection.appendChild(variantsWrapper);
 
             bottomResetContainer.style.display = 'flex';
             outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -545,23 +566,17 @@
             
             let promptHtml = '';
             if (label === 'Title') {
-                promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy, Amazon and other E-commerce platform search trends. Focus on clarity, search intent, and character count limit (140 characters max). Use the following text:</div>`;
+                promptHtml = `<div class="prompt-text">I sell products primarily in the United States. Please generate a professional, high-converting, and SEO-optimized Etsy.com product listing title. Use strong keywords relevant to U.S. buyers and Etsy, Amazon and other E-commerce platform search trends. Focus on clarity, search intent, and character count limit (maximum 140 characters including all space). Use the following text:</div>`;
             } else if (label === 'Description') {
                 promptHtml = `<div class="prompt-text">Please generate a high-converting, professional, and SEO-optimized Etsy.com product description targeting customers in the United States. Use persuasive language, focus on Etsy, Amazon and other E-commerce platform search trends, and naturally incorporate relevant keywords.<br>Use the title and the text below as the base. Replace any ✔ or ** symbols with suitable and related emojis that clearly represent the feature or benefit described. The tone should be friendly, trustworthy, and product-focused.<br>Base Text:</div>`;
             }
 
             div.innerHTML = `
-                <div class="output-header">
-                    <h3>${label}</h3>
-                    <button class="copy-btn">Copy</button>
-                </div>
+                <div class="output-header"><h3>${label}</h3><button class="copy-btn">Copy</button></div>
                 ${promptHtml}
-                <div class="loader-container" style="display: flex;">
-                    <div class="loader"></div>
-                </div>
+                <div class="loader-container" style="display: flex;"><div class="loader"></div></div>
                 <div class="output-box"></div>
-                <img src="${dataUrl}" class="preview-output-img">
-            `;
+                <img src="${dataUrl}" class="preview-output-img">`;
             return div;
         }
 
@@ -569,12 +584,8 @@
             const div = document.createElement('div');
             div.className = 'output-wrapper';
             div.innerHTML = `
-                <div class="output-header">
-                    <h3>${label}</h3>
-                    <button class="copy-btn">Copy</button>
-                </div>
-                <div class="prompt-text">${promptText.replace(/\n/g, '<br>')}</div>
-            `;
+                <div class="output-header"><h3>${label}</h3><button class="copy-btn">Copy</button></div>
+                <div class="prompt-text">${promptText.replace(/\n/g, '<br>')}</div>`;
             return div;
         }
 
@@ -582,16 +593,13 @@
             const div = document.createElement('div');
             div.className = 'output-wrapper';
             div.innerHTML = `
-                <div class="output-header">
-                    <h3>Variants</h3>
-                </div>
+                <div class="output-header"><h3>Variants</h3></div>
                 <div class="variants-container">
                     <div class="variant-item"><span class="variant-text">Side</span><button class="copy-btn">Copy</button></div>
                     <div class="variant-item"><span class="variant-text">Driver's Side</span><button class="copy-btn">Copy</button></div>
                     <div class="variant-item"><span class="variant-text">Passenger's Side</span><button class="copy-btn">Copy</button></div>
                     <div class="variant-item"><span class="variant-text">Both Sides</span><button class="copy-btn">Copy</button></div>
-                </div>
-            `;
+                </div>`;
             return div;
         }
         
@@ -599,23 +607,15 @@
             if (e.target.classList.contains('copy-btn')) {
                 const wrapper = e.target.closest('.output-wrapper');
                 const variantItem = e.target.closest('.variant-item');
-                
                 let textToCopy = '';
 
                 if (variantItem) {
-                    const variantText = variantItem.querySelector('.variant-text');
-                    textToCopy = variantText.textContent.trim();
+                    textToCopy = variantItem.querySelector('.variant-text').textContent.trim();
                 } else {
+                    const promptBox = wrapper.querySelector('.prompt-text');
                     const outputBox = wrapper.querySelector('.output-box');
-                    const promptBox = wrapper.querySelector('.prompt-text'); 
-                
-                    if (promptBox) {
-                        textToCopy = promptBox.innerHTML.replace(/<br\s*\/?>/gi, "\n").trim();
-                    }
-
-                    if (outputBox && outputBox.textContent) {
-                        textToCopy += `\n${outputBox.textContent.trim()}`;
-                    }
+                    if (promptBox) textToCopy = promptBox.innerHTML.replace(/<br\s*\/?>/gi, "\n").trim();
+                    if (outputBox && outputBox.textContent) textToCopy += `\n${outputBox.textContent.trim()}`;
                 }
 
                 const textArea = document.createElement('textarea');
@@ -631,18 +631,14 @@
                     console.error('Failed to copy text: ', err);
                     e.target.textContent = 'Error';
                 }
-                setTimeout(() => {
-                    e.target.textContent = 'Copy';
-                }, 2000);
+                setTimeout(() => { e.target.textContent = 'Copy'; }, 2000);
                 document.body.removeChild(textArea);
             }
         });
 
         async function convertImageToText(file, loaderElement, prompt, type) {
             const apiKey = availableApiKeys[0];
-            
             if (!apiKey) {
-                console.log("No available Gemini API keys. Falling back to Tesseract.");
                 return await convertImageWithTesseract(file, loaderElement, type);
             }
 
@@ -650,15 +646,7 @@
             
             try {
                 const base64ImageData = await toBase64(file);
-                const payload = {
-                  contents: [{
-                        role: "user",
-                        parts: [
-                            { text: prompt },
-                            { inlineData: { mimeType: file.type, data: base64ImageData } }
-                        ]
-                    }],
-                };
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }] }] };
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -667,10 +655,16 @@
                 });
 
                 if (response.status === 429) {
-                    console.warn(`API key ending in ${apiKey.slice(-4)} has reached its limit. Placing on 24hr cooldown.`);
-                    setApiKeyCooldown(apiKey);
+                    console.warn(`API key ending in ${apiKey.slice(-4)} has reached its limit.`);
+                    setApiKeyState(apiKey, 'cooldown', 24);
                     availableApiKeys.shift();
                     return await convertImageToText(file, loaderElement, prompt, type);
+                }
+                if (response.status === 400) {
+                     console.error(`API key ending in ${apiKey.slice(-4)} is invalid.`);
+                     setApiKeyState(apiKey, 'invalid');
+                     availableApiKeys.shift();
+                     return await convertImageToText(file, loaderElement, prompt, type);
                 }
 
                 if (!response.ok) {
@@ -684,7 +678,7 @@
                     loaderElement.style.display = 'none';
                     return { text: result.candidates[0].content.parts[0].text, engine: 'Gemini' };
                 } else {
-                     throw new Error(result.candidates[0]?.finishReason || "Could not extract text from this image.");
+                     throw new Error(result.candidates[0]?.finishReason || "Could not extract text.");
                 }
             } catch (error) {
                 console.error(`Error with Gemini:`, error);
@@ -697,8 +691,7 @@
                 const worker = await Tesseract.createWorker('eng');
                 const ret = await worker.recognize(file);
                 await worker.terminate();
-                const rawText = ret.data.text;
-                const formattedText = formatTesseractOutput(rawText, type);
+                const formattedText = formatTesseractOutput(ret.data.text, type);
                 return { text: formattedText, engine: 'Tesseract' };
             } catch (error) {
                 console.error("Tesseract Error:", error);
@@ -720,9 +713,7 @@
                 const processedLines = [];
                 
                 lines.forEach(line => {
-                    let processedLine = line.trim();
-                    processedLine = processedLine.replace(/^[•.✔*-]\s*/, '');
-                    processedLine = processedLine.replace(/—/g, '-');
+                    let processedLine = line.trim().replace(/^[•.✔*-]\s*/, '').replace(/—/g, '-');
                     processedLines.push(processedLine);
                 });
                 return processedLines.join('\n');
@@ -733,7 +724,6 @@
         function toBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.readAsDataURL(file);
                 reader.onload = () => resolve(reader.result.split(',')[1]);
                 reader.onerror = error => reject(error);
             });
